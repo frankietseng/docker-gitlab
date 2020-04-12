@@ -1,0 +1,56 @@
+#!/bin/bash
+
+###########################################################
+function help()
+{
+        echo ""
+        echo "runner-tool [command] [runner name]"
+        echo ""
+        echo "  command: "
+        echo "     start      -- create new runner container"
+        echo "     register   -- register runner"
+        echo "     drop       -- remove runner container"
+        echo "     exec       -- enter runner container"
+        echo ""
+}
+###########################################################
+if [ "$1" == "" ] || [ "$1" == "help" ]
+then
+        help
+        exit 
+fi
+###########################################################
+
+runner_name=$2
+
+if [ "$1" == "start" ]
+then 
+docker run -d --name gitlab-runner-$runner_name --restart always --network gitlab-ce \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tool/gitlab/gitlab-runner/$runner_name/config:/etc/gitlab-runner \
+  gitlab/gitlab-runner:alpine-v12.4.0
+exit
+fi
+###########################################################
+if [ "$1" == "register" ]
+then 
+    docker exec -it gitlab-runner-$runner_name gitlab-runner register
+sudo sed -i '11 a\  clone_url = "http://gitlab.com"' -i /tool/gitlab/gitlab-runner/$runner_name/config/config.toml
+sudo sed -i '11 a\  environment = ["DOCKER_TLS_CERTDIR="]' -i /tool/gitlab/gitlab-runner/$runner_name/config/config.toml
+sudo sed -i "18 s/false/true/" /tool/gitlab/gitlab-runner/$runner_name/config/config.toml
+exit
+fi
+###########################################################
+if [ "$1" == "drop" ]
+then
+    docker container stop gitlab-runner-$runner_name && docker container rm gitlab-runner-$runner_name && sudo rm gitlab-runner/$runner_name -rf 
+exit
+fi
+###########################################################
+if [ "$1" == "exec" ]
+then
+    docker exec -it gitlab-runner-$runner_name /bin/bash
+exit
+fi
+###########################################################
+
